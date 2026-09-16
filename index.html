@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Generate consistent Git branch names quickly.">
+  <title>Branch Name Generator</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #17191c;
+      --border: #dfe3e8;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+      --success: #15803d;
+      --result-bg: #f0f6ff;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.07), transparent 32rem),
+        var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      width: min(760px, calc(100% - 32px));
+      margin: 0 auto;
+      padding: 56px 0 48px;
+    }
+
+    .header { margin-bottom: 24px; }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(30px, 5vw, 42px);
+      line-height: 1.1;
+      letter-spacing: -0.035em;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px;
+      box-shadow: 0 12px 35px rgba(17, 24, 39, .06);
+    }
+
+    .field { margin-bottom: 20px; }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    input, select, button { font: inherit; }
+
+    input, select {
+      width: 100%;
+      height: 46px;
+      padding: 0 13px;
+      font-size: 15px;
+      color: var(--text);
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      transition: border-color .15s, box-shadow .15s;
+    }
+
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, .12);
+    }
+
+    input.input-error, select.input-error {
+      border-color: #d33c3c;
+      box-shadow: 0 0 0 3px rgba(211, 60, 60, .12);
+    }
+
+    .field-warning {
+      margin: 6px 0 0;
+      font-size: 12px;
+      color: #d33c3c;
+    }
+
+    .field-warning[hidden], .form-warning[hidden] { display: none; }
+
+    .form-warning {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      color: #b91c1c;
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      border-radius: 8px;
+    }
+
+    select {
+      appearance: none;
+      -webkit-appearance: none;
+      padding-right: 40px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 13px center;
+      background-size: 17px;
+    }
+
+    .branch-row { display: flex; align-items: stretch; gap: 8px; }
+    .branch-row input { flex: 1; min-width: 0; width: auto; }
+
+    .icon-btn {
+      width: 46px;
+      min-width: 46px;
+      height: 46px;
+      flex-shrink: 0;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: .15s;
+    }
+
+    .clear-btn {
+      color: #fff;
+      background: #d33c3c;
+      border-color: #d33c3c;
+    }
+    .clear-btn:hover { background: #bc3535; border-color: #bc3535; }
+
+    .copy-btn { background: #fff; color: var(--text); }
+    .copy-btn:hover { background: #f8fafc; border-color: #b8c0ca; }
+    .copy-btn.copied {
+      color: var(--success);
+      background: #effaf2;
+      border-color: #a7d8b1;
+    }
+
+    .icon-btn svg { width: 18px; height: 18px; }
+
+    .result {
+      margin-top: 26px;
+      padding-top: 24px;
+      border-top: 1px solid #edf0f2;
+    }
+
+    .result label { margin-bottom: 8px; }
+
+    .readonly {
+      background: var(--result-bg);
+      border-color: #cfe0ff;
+      color: #17458f;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      font-size: 14px;
+      cursor: default;
+    }
+
+    .readonly:focus {
+      border-color: #cfe0ff;
+      box-shadow: none;
+    }
+
+    .generate-btn {
+      width: 100%;
+      height: 46px;
+      margin-top: 4px;
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: 1px solid var(--accent);
+      border-radius: 9px;
+      cursor: pointer;
+      transition: background .15s, border-color .15s;
+    }
+
+    .generate-btn:hover {
+      background: var(--accent-dark);
+      border-color: var(--accent-dark);
+    }
+
+    .footer {
+      margin-top: 18px;
+      text-align: center;
+      color: #9ca3af;
+      font-size: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .page { width: min(100% - 20px, 760px); padding: 30px 0; }
+      .card { padding: 20px; border-radius: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="header">
+      <div class="eyebrow">Developer Tool</div>
+      <h1>Branch Name Generator</h1>
+    </header>
+
+    <section class="card">
+      <div class="field">
+        <label for="branch-type">Branch Type</label>
+        <select id="branch-type">
+          <option value="">Select a branch type</option>
+          <option value="develop">Develop Branch</option>
+          <option value="release">Release Branch</option>
+          <option value="task">Task Branch</option>
+          <option value="base">Base Branch</option>
+          <option value="backlog">Backlog Fix Branch</option>
+          <option value="project">Project Fix Branch</option>
+          <option value="update">Project Update Branch</option>
+        </select>
+      </div>
+
+      <div id="dynamic-fields"></div>
+
+      <p id="form-warning" class="form-warning" hidden>Please fill in all required fields.</p>
+
+      <button type="button" class="generate-btn" id="generate-branch">Generate Branch Name</button>
+
+      <div class="result" aria-live="polite">
+        <label for="generated-branch">Generated Branch Name</label>
+        <div class="branch-row">
+          <input type="text" id="generated-branch" class="readonly" readonly placeholder="Fill the fields and click Generate">
+          <button type="button" class="icon-btn copy-btn" id="copy-branch" title="Copy branch name" aria-label="Copy branch name">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <footer class="footer">Simple tool for naming branches</footer>
+  </main>
+
+  <script>
+    const dynamicFields = document.getElementById('dynamic-fields');
+    const generatedBranch = document.getElementById('generated-branch');
+    const copyBtn = document.getElementById('copy-branch');
+    const branchTypeSelect = document.getElementById('branch-type');
+    const formWarning = document.getElementById('form-warning');
+    const generateBtn = document.getElementById('generate-branch');
+
+    const COPY_ICON = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+      </svg>
+    `;
+    const TICK_ICON = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="20 6 9 17 4 12"></polyline>
+      </svg>
+    `;
+
+    const BRANCH_CONFIG = {
+      develop: {
+        fields: [{ id: 'project-number', label: 'Project Number' }],
+        build: () => `feature/${getValue('project-number')}_develop`
+      },
+      release: {
+        fields: [{ id: 'release-version', label: 'Release Version' }],
+        build: () => `release/${getValue('release-version')}`
+      },
+      task: {
+        fields: [
+          { id: 'project-number', label: 'Project Number' },
+          { id: 'task-name', label: 'Task Name' }
+        ],
+        build: () => `feature/${getValue('project-number')}_develop_feature/${getValue('task-name')}`
+      },
+      base: {
+        fields: [{ id: 'release-version', label: 'Release Version' }],
+        build: () => `feature/${getValue('release-version')}_release_base`
+      },
+      backlog: {
+        fields: [{ id: 'backlog-number', label: 'Backlog Number' }],
+        build: () => `bugfix/backlog_issue/fix_issue_${getValue('backlog-number')}`
+      },
+      project: {
+        fields: [
+          { id: 'project-number', label: 'Project Number' },
+          { id: 'bug-number', label: 'Bug Number' }
+        ],
+        build: () => `bugfix/project_issue/${getValue('project-number')}/fix_bug_No${getValue('bug-number')}`
+      },
+      update: {
+        fields: [{ id: 'project-number', label: 'Project Number' }],
+        build: () => `merge/${getValue('project-number')}_update`
+      }
+    };
+
+    function getValue(id) {
+      const el = document.getElementById(id);
+      return el ? el.value.trim().replace(/\s+/g, '-') : '';
+    }
+
+    function showTickIcon() {
+      copyBtn.innerHTML = TICK_ICON;
+      copyBtn.classList.add('copied');
+      copyBtn.title = 'Copied';
+      copyBtn.setAttribute('aria-label', 'Copied');
+    }
+
+    function resetCopyIcon() {
+      if (!copyBtn.classList.contains('copied')) return;
+      copyBtn.innerHTML = COPY_ICON;
+      copyBtn.classList.remove('copied');
+      copyBtn.title = 'Copy branch name';
+      copyBtn.setAttribute('aria-label', 'Copy branch name');
+    }
+
+    function clearWarnings() {
+      formWarning.hidden = true;
+      branchTypeSelect.classList.remove('input-error');
+      dynamicFields.querySelectorAll('.input-error').forEach((el) => el.classList.remove('input-error'));
+      dynamicFields.querySelectorAll('.field-warning').forEach((el) => { el.hidden = true; });
+    }
+
+    function validateFields(type) {
+      clearWarnings();
+
+      if (!type) {
+        formWarning.textContent = 'Please select a branch type.';
+        formWarning.hidden = false;
+        branchTypeSelect.classList.add('input-error');
+        return false;
+      }
+
+      const fields = BRANCH_CONFIG[type]?.fields || [];
+      let valid = true;
+
+      fields.forEach(({ id }) => {
+        const input = document.getElementById(id);
+        if (!input || !input.value.trim()) {
+          valid = false;
+          input?.classList.add('input-error');
+          const warning = document.getElementById(`${id}-warning`);
+          if (warning) warning.hidden = false;
+        }
+      });
+
+      if (!valid) {
+        formWarning.textContent = 'Please fill in all required fields.';
+        formWarning.hidden = false;
+      }
+
+      return valid;
+    }
+
+    function generateInputField(label, id) {
+      return `
+        <div class="field">
+          <label for="${id}">${label}</label>
+          <div class="branch-row">
+            <input type="text" id="${id}">
+            <button type="button" class="icon-btn clear-btn" data-target="${id}" title="Clear ${label}" aria-label="Clear ${label}">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+              </svg>
+            </button>
+          </div>
+          <p class="field-warning" id="${id}-warning" hidden>${label} is required.</p>
+        </div>
+      `;
+    }
+
+    function renderFields(type) {
+      const config = BRANCH_CONFIG[type];
+      dynamicFields.innerHTML = config
+        ? config.fields.map(({ label, id }) => generateInputField(label, id)).join('')
+        : '';
+    }
+
+    function generateBranchName() {
+      const type = branchTypeSelect.value;
+      if (!validateFields(type)) return;
+      generatedBranch.value = BRANCH_CONFIG[type].build();
+    }
+
+    function copyWithFallback(name) {
+      const temp = document.createElement('textarea');
+      temp.value = name;
+      temp.setAttribute('readonly', '');
+      temp.style.position = 'fixed';
+      temp.style.left = '-9999px';
+      document.body.appendChild(temp);
+      temp.select();
+      document.execCommand('copy');
+      document.body.removeChild(temp);
+    }
+
+    branchTypeSelect.addEventListener('change', () => {
+      renderFields(branchTypeSelect.value);
+      generatedBranch.value = '';
+      resetCopyIcon();
+      clearWarnings();
+    });
+
+    generateBtn.addEventListener('click', generateBranchName);
+
+    dynamicFields.addEventListener('input', (e) => {
+      if (e.target.tagName !== 'INPUT') return;
+      e.target.classList.remove('input-error');
+      const warning = document.getElementById(`${e.target.id}-warning`);
+      if (warning) warning.hidden = true;
+      formWarning.hidden = true;
+    });
+
+    dynamicFields.addEventListener('click', (e) => {
+      const clearBtn = e.target.closest('.clear-btn');
+      if (!clearBtn) return;
+      const input = document.getElementById(clearBtn.dataset.target);
+      if (!input) return;
+      input.value = '';
+      input.focus();
+      generatedBranch.value = '';
+      resetCopyIcon();
+    });
+
+    copyBtn.addEventListener('click', () => {
+      const name = generatedBranch.value.trim();
+      if (!name) return;
+
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(name).catch(() => copyWithFallback(name));
+      } else {
+        copyWithFallback(name);
+      }
+      showTickIcon();
+    });
+  </script>
+</body>
+</html>

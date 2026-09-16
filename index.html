@@ -112,7 +112,9 @@
       color: #d33c3c;
     }
 
-    .field-warning[hidden], .form-warning[hidden] { display: none; }
+    .field-warning[hidden],
+    .form-warning[hidden],
+    .command-section[hidden] { display: none; }
 
     .form-warning {
       margin: 0 0 12px;
@@ -176,6 +178,38 @@
     }
 
     .result label { margin-bottom: 8px; }
+
+    .command-card {
+      margin-top: 16px;
+      padding: 16px;
+      background: #f3faf5;
+      border: 1px solid #cfe3d4;
+      border-radius: 12px;
+    }
+
+    .command-card p {
+      margin: 8px 0 0;
+      color: #6b7280;
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .command-input {
+      background: #e8f6ec;
+      border-color: #b7dcc2;
+      color: #166534;
+    }
+
+    .command-input:focus {
+      border-color: #b7dcc2;
+      box-shadow: none;
+    }
+
+    .section-divider {
+      border: none;
+      border-top: 1px solid #edf0f2;
+      margin: 20px 0 0;
+    }
 
     .readonly {
       background: var(--result-bg);
@@ -263,6 +297,23 @@
           </button>
         </div>
       </div>
+
+      <div class="command-section" id="command-section" hidden>
+        <hr class="section-divider">
+        <div class="command-card">
+          <label for="checkout-command">Checkout command</label>
+          <div class="branch-row">
+            <input type="text" id="checkout-command" class="readonly command-input" readonly>
+            <button type="button" class="icon-btn copy-btn" id="copy-command" title="Copy checkout command" aria-label="Copy checkout command">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+            </button>
+          </div>
+          <p>Paste this in your terminal to fetch and switch to the new branch.</p>
+        </div>
+      </div>
     </section>
 
     <footer class="footer">Simple tool for naming branches</footer>
@@ -275,6 +326,9 @@
     const branchTypeSelect = document.getElementById('branch-type');
     const formWarning = document.getElementById('form-warning');
     const generateBtn = document.getElementById('generate-branch');
+    const commandSection = document.getElementById('command-section');
+    const checkoutCommand = document.getElementById('checkout-command');
+    const copyCommandBtn = document.getElementById('copy-command');
 
     const COPY_ICON = `
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -330,19 +384,37 @@
       return el ? el.value.trim().replace(/\s+/g, '-') : '';
     }
 
-    function showTickIcon() {
-      copyBtn.innerHTML = TICK_ICON;
-      copyBtn.classList.add('copied');
-      copyBtn.title = 'Copied';
-      copyBtn.setAttribute('aria-label', 'Copied');
+    function showTickIcon(btn) {
+      btn.innerHTML = TICK_ICON;
+      btn.classList.add('copied');
+      btn.title = 'Copied';
+      btn.setAttribute('aria-label', 'Copied');
     }
 
-    function resetCopyIcon() {
-      if (!copyBtn.classList.contains('copied')) return;
-      copyBtn.innerHTML = COPY_ICON;
-      copyBtn.classList.remove('copied');
-      copyBtn.title = 'Copy branch name';
-      copyBtn.setAttribute('aria-label', 'Copy branch name');
+    function resetCopyIcon(btn, title) {
+      if (!btn.classList.contains('copied')) return;
+      btn.innerHTML = COPY_ICON;
+      btn.classList.remove('copied');
+      btn.title = title;
+      btn.setAttribute('aria-label', title);
+    }
+
+    function resetOutput() {
+      generatedBranch.value = '';
+      checkoutCommand.value = '';
+      commandSection.hidden = true;
+      resetCopyIcon(copyBtn, 'Copy branch name');
+      resetCopyIcon(copyCommandBtn, 'Copy checkout command');
+    }
+
+    function copyText(value, btn) {
+      if (!value) return;
+      if (navigator.clipboard && window.isSecureContext) {
+        navigator.clipboard.writeText(value).catch(() => copyWithFallback(value));
+      } else {
+        copyWithFallback(value);
+      }
+      showTickIcon(btn);
     }
 
     function clearWarnings() {
@@ -362,7 +434,7 @@
         return false;
       }
 
-      const fields = BRANCH_CONFIG[type]?.fields || [];
+      const fields = BRANCH_CONFIG[type].fields;
       let valid = true;
 
       fields.forEach(({ id }) => {
@@ -411,7 +483,12 @@
     function generateBranchName() {
       const type = branchTypeSelect.value;
       if (!validateFields(type)) return;
-      generatedBranch.value = BRANCH_CONFIG[type].build();
+      const name = BRANCH_CONFIG[type].build();
+      generatedBranch.value = name;
+      checkoutCommand.value = `git fetch origin && git checkout ${name}`;
+      commandSection.hidden = false;
+      resetCopyIcon(copyBtn, 'Copy branch name');
+      resetCopyIcon(copyCommandBtn, 'Copy checkout command');
     }
 
     function copyWithFallback(name) {
@@ -428,8 +505,7 @@
 
     branchTypeSelect.addEventListener('change', () => {
       renderFields(branchTypeSelect.value);
-      generatedBranch.value = '';
-      resetCopyIcon();
+      resetOutput();
       clearWarnings();
     });
 
@@ -450,20 +526,15 @@
       if (!input) return;
       input.value = '';
       input.focus();
-      generatedBranch.value = '';
-      resetCopyIcon();
+      resetOutput();
     });
 
     copyBtn.addEventListener('click', () => {
-      const name = generatedBranch.value.trim();
-      if (!name) return;
+      copyText(generatedBranch.value.trim(), copyBtn);
+    });
 
-      if (navigator.clipboard && window.isSecureContext) {
-        navigator.clipboard.writeText(name).catch(() => copyWithFallback(name));
-      } else {
-        copyWithFallback(name);
-      }
-      showTickIcon();
+    copyCommandBtn.addEventListener('click', () => {
+      copyText(checkoutCommand.value.trim(), copyCommandBtn);
     });
   </script>
 </body>
